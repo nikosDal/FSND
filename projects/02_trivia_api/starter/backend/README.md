@@ -72,9 +72,12 @@ This README is missing documentation of your endpoints. Below is an example for 
 
 Endpoints
 GET '/categories'
-GET ...
-POST ...
-DELETE ...
+GET '/questions'
+POST '/questions'
+DELETE '/questions/<question_id>'
+POST '/questions/search'
+GET '/categories/<category_id>/questions'
+POST '/quizzes'
 
 GET '/categories'
 - Fetches a dictionary of categories in which the keys are the ids and the value is the corresponding string of the category
@@ -86,8 +89,77 @@ GET '/categories'
 '4' : "History",
 '5' : "Entertainment",
 '6' : "Sports"}
+- If no categories found, returns HTTP 404
 
-```
+GET '/questions'
+- Fetches questions in pages of 10, with default page number 1, order by question id
+- Request Arguments: page (int)
+- Returns: JSON with following schema:
+    {
+        success: boolean,
+        questions: [ {
+            answer: string,
+            category: int,
+            difficulty: int,
+            id: int,
+            question: string
+        } ],
+        current_category: int,
+        total_questions: int
+    }
+
+POST '/questions'
+- Inserts new question to the database
+- Request Arguments: JSON with schema
+    {
+        question: str,
+        answer: str,
+        difficulty: int between 1 and 6,
+        category: int matching a category id
+    }
+- Returns: JSON {success: True}
+- If any of the parameters are missing, returns HTTP 422
+- If any of the parameters are invalid, returns HTTP 400
+
+DELETE '/questions/<question_id>'
+- Deletes the question with the given id from the datbase
+- Request Arguments: question_id (int)
+- Returns: JSON {success: True}
+- If question_id is missing, returns HTTP 404
+
+POST '/questions/search'
+- Looks for and returns questions matching the given search term
+- Request Arguments: JSON {searchTerm: str}
+- Returns: JSON as per GET '/questions'
+- If searchTerm is missing, returns HTTP 422
+
+GET '/categories/<category_id>/questions'
+- Returns list of questions for the given category
+- Request Arguments: category_id (int)
+- Returns: JSON as per GET '/questions'
+- If no questions found, returns HTTP 404
+
+POST '/quizzes'
+- Takes in a list of question ids and a category id (with 0 representing ALL) and returns
+  a random question from that category (or across categories) that is not in the list of
+  questions given. If there are no available questions, it returns null.
+- Request Arguments: JSON with schema
+    {
+        quiz_category: { id: int, type: string },
+        previous_questions: [ id: int ]
+    }
+- Returns: JSON with schema
+    {
+        success: boolean,
+        question: {
+            question: string,
+            answer: string,
+            id: int,
+            difficulty: int,
+            category: int
+        }
+    }
+- If either the quiz_category or previous_questions are missing from the request, returns HTTP 422
 
 
 ## Testing
