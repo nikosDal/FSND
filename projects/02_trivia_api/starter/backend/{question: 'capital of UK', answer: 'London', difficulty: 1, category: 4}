@@ -1,0 +1,9 @@
+HTTP/1.0 400 BAD REQUEST
+Content-Type: application/json
+Content-Length: 88
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Server: Werkzeug/1.0.1 Python/3.9.1
+Date: Fri, 05 Feb 2021 17:08:22 GMT
+

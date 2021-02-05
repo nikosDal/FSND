@@ -114,7 +114,7 @@ POST '/questions'
     {
         question: str,
         answer: str,
-        difficulty: int between 1 and 6,
+        difficulty: int between 1 and 5,
         category: int matching a category id
     }
 - Returns: JSON {success: True}
@@ -128,9 +128,22 @@ DELETE '/questions/<question_id>'
 - If question_id is missing, returns HTTP 404
 
 POST '/questions/search'
-- Looks for and returns questions matching the given search term
+- Looks for and returns questions matching the given search term. If blank searchTerm is given, all questions are returned
+  paginated (same as GET '/questions'). Otherwise, all search results are shown without pagination. If no questions match,
+  an empty list is returned.
 - Request Arguments: JSON {searchTerm: str}
-- Returns: JSON as per GET '/questions'
+- Returns: JSON with schema
+    {
+        success: boolean,
+        questions: [{
+            question: str,
+            answer: str,
+            difficulty: int,
+            category: int
+        }],
+        total_questions: int (total number of questions matching),
+        curent_category: int
+    }
 - If searchTerm is missing, returns HTTP 422
 
 GET '/categories/<category_id>/questions'

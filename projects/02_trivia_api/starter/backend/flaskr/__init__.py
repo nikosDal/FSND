@@ -68,7 +68,7 @@ def create_app(test_config=None):
             'success': True,
             'questions': page_questions,
             'total_questions': len(questions),
-            'current_category': 1,   # WHAT IS THIS MEANT TO SHOW??
+            # 'current_category': 1,   # DON'T SEE A NEED FOR THIS??
             'categories': cat_dict
         })
 
@@ -92,6 +92,9 @@ def create_app(test_config=None):
 
     @app.route('/questions', methods=['POST'])
     def add_question():
+        if not request.json:
+            abort(400, description='Empty request')
+
         try:
             question = Question(
                 question=request.json['question'],
@@ -102,13 +105,20 @@ def create_app(test_config=None):
         except KeyError as e:
             # Missing one of required parameters from request JSON
             abort(422, description=f'Missing question parameter: {e}')
-        except ValueError as e:
+        except (ValueError, TypeError) as e:
             # Bad parameter given in JSON
             abort(400, description=f'Bad parameter given: {e}')
 
+        # Check that category is correct (i.e. exists in Categories)
+        if not Category.query.get(question.category):
+            abort(400, description=f'Invalid category given: <{question.category}>')
+
         try:
             question.insert()
-            return jsonify(success=True)
+            return jsonify({
+                'success': True,
+                'new_question': question.format()
+            })
         except Exception as e:
             app.log_exception(e)
             abort(500)
@@ -119,21 +129,24 @@ def create_app(test_config=None):
             abort(422, description='Missing searchTerm')
 
         search_term = request.json['searchTerm']
+
+        # If searchTerm is blank, show all questions paginated
+        if search_term == '':
+            return get_questions()
+
+        # Otherwise, lookup questions having the searchTerm and return ALL results
         try:
             questions = Question.query.filter(Question.question.ilike(f'%{search_term}%')).all()
         except Exception as e:
             app.log_exception(e)
             abort(500, description=f'Failed to query Questions: {e}')
 
-        if not questions:
-            abort(404, description=f'No questions found for searchTerm {search_term}')
-
         formatted_questions = [question.format() for question in questions]
         return jsonify({
             'success': True,
             'questions': formatted_questions,
-            'total_questions': len(questions),
-            'current_category': 1   # AGAIN, WHAT IS THIS MEANT TO BE AND HOW IS IT USED??
+            'total_questions': len(questions)
+            # 'current_category': 1   # AGAIN, DON'T SEE A NEED FOR THIS
         })
 
     @app.route('/categories/<int:category_id>/questions', methods=['GET'])
@@ -194,8 +207,18 @@ def create_app(test_config=None):
     # ----------------------------------------------------
     # ERROR HANDLERS
     # ----------------------------------------------------
+    @app.errorhandler(400)
+    def bad_request_error(err):
+        app.logger.error(err)
+        return jsonify({
+            'success': False,
+            'error': 400,
+            'message': str(err)
+        }), 400
+
     @app.errorhandler(404)
     def not_found_error(err):
+        app.logger.error(err)
         return jsonify({
             'success': False,
             'error': 404,
@@ -204,6 +227,7 @@ def create_app(test_config=None):
 
     @app.errorhandler(422)
     def unprocessable_error(err):
+        app.logger.error(err)
         return jsonify({
             'success': False,
             'error': 422,
@@ -212,6 +236,7 @@ def create_app(test_config=None):
 
     @app.errorhandler(500)
     def internal_error(err):
+        app.logger.error(err)
         return jsonify({
             'success': False,
             'error': 500,
