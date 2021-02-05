@@ -67,8 +67,7 @@ One note before you delve into your tasks: for each endpoint you are expected to
 9. Create error handlers for all expected errors including 400, 404, 422 and 500. 
 
 ## API documentation
-
-### Endpoints
+The following endpoints are available:
 ```
 GET '/categories'
 GET '/questions'
