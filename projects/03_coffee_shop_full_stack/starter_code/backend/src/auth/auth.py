@@ -3,13 +3,20 @@ from flask import request, _request_ctx_stack
 from functools import wraps
 from jose import jwt
 from urllib.request import urlopen
+from dotenv import find_dotenv, load_dotenv
+from os import environ as env
 
 
-AUTH0_DOMAIN = 'udacity-fsnd.auth0.com'
+ENV_FILE = find_dotenv()
+if ENV_FILE:
+    load_dotenv(ENV_FILE)
+
+AUTH0_DOMAIN = env.get('AUTH0_DOMAIN')
+AUTH0_AUDIENCE = env.get('AUTH0_AUDIENCE')
+AUTH0_BASE_URL = 'https://' + AUTH0_DOMAIN
 ALGORITHMS = ['RS256']
-API_AUDIENCE = 'dev'
 
-## AuthError Exception
+
 '''
 AuthError Exception
 A standardized way to communicate auth failure modes
@@ -20,8 +27,6 @@ class AuthError(Exception):
         self.status_code = status_code
 
 
-## Auth Header
-
 '''
 @TODO implement get_token_auth_header() method
     it should attempt to get the header from the request
@@ -31,7 +36,18 @@ class AuthError(Exception):
     return the token part of the header
 '''
 def get_token_auth_header():
-   raise Exception('Not Implemented')
+    auth = request.headers.get('Authorization', None)
+    if not auth:
+        raise AuthError('Missing authorization header', 401)
+    auth_parts = auth.split()
+    if auth_parts[0].lower() != 'bearer':
+        raise AuthError('Missing bearer token', 401)
+    if len(auth_parts) == 1:
+        raise AuthError('Missing token', 401)
+    if len(auth_parts) > 2:
+        raise AuthError('Invalid bearer token', 401)
+    return auth_parts[1]
+
 
 '''
 @TODO implement check_permissions(permission, payload) method
@@ -45,7 +61,12 @@ def get_token_auth_header():
     return true otherwise
 '''
 def check_permissions(permission, payload):
-    raise Exception('Not Implemented')
+    if 'permissions' not in payload:
+        raise AuthError('Missing permissions', 400)
+    if permission not in payload['permissions']:
+        raise AuthError('Not authorized', 403)
+    return True
+
 
 '''
 @TODO implement verify_decode_jwt(token) method
@@ -58,10 +79,47 @@ def check_permissions(permission, payload):
     it should validate the claims
     return the decoded payload
 
-    !!NOTE urlopen has a common certificate error described here: https://stackoverflow.com/questions/50236117/scraping-ssl-certificate-verify-failed-error-for-http-en-wikipedia-org
+    !!NOTE urlopen has a common certificate error described here:
+    https://stackoverflow.com/questions/50236117/scraping-ssl-certificate-verify-failed-error-for-http-en-wikipedia-org
 '''
 def verify_decode_jwt(token):
-    raise Exception('Not Implemented')
+    # From the Auth0 quickstart guide
+    jsonurl = urlopen(f"https://{AUTH0_DOMAIN}/.well-known/jwks.json")
+    jwks = json.loads(jsonurl.read())
+    try:
+        unverified_header = jwt.get_unverified_header(token)
+    except jwt.JWTError:
+        raise AuthError('error decoding token headers', 400)
+    rsa_key = {}
+    for key in jwks["keys"]:
+        if key["kid"] == unverified_header["kid"]:
+            rsa_key = {
+                "kty": key["kty"],
+                "kid": key["kid"],
+                "use": key["use"],
+                "n": key["n"],
+                "e": key["e"]
+            }
+    if rsa_key:
+        try:
+            payload = jwt.decode(
+                token,
+                rsa_key,
+                algorithms=ALGORITHMS,
+                audience=AUTH0_AUDIENCE,
+                issuer=f"https://{AUTH0_DOMAIN}/"
+            )
+        except jwt.ExpiredSignatureError:
+            raise AuthError('token has expired', 401)
+        except jwt.JWTClaimsError:
+            raise AuthError('invalid_claims - check audience and issuer', 401)
+        except Exception:
+            raise AuthError('unable to parse authentication token', 401)
+        # _request_ctx_stack.top.current_user = payload
+        return payload
+
+    raise AuthError('unable to find appropriate key', 401)
+
 
 '''
 @TODO implement @requires_auth(permission) decorator method
